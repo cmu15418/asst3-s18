@@ -42,11 +42,13 @@ static void show_weights(state_t *s) {
 
 /* Recompute all node counts according to rat population */
 static inline void take_census(state_t *s) {
-    int nrat = s->nrat;
+    graph_t *g = s->g;
+    int nnode = g->nnode;
     int *rat_position = s->rat_position;
     int *rat_count = s->rat_count;
+    int nrat = s->nrat;
 
-    memset(rat_count, 0, nrat * sizeof(int));
+    memset(rat_count, 0, nnode * sizeof(int));
     int ri;
     for (ri = 0; ri < nrat; ri++) {
 	rat_count[rat_position[ri]] ++;
