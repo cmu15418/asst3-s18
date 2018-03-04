@@ -14,8 +14,7 @@
 
 # Go to the directory from which you submitted your job
 cd $PBS_O_WORKDIR
+echo "Current commit hash: $(git rev-parse HEAD)"
 
 # Execute the performance evaluation program and store summary in benchmark.out
 ./benchmark.py -f benchmark.out
-
-
