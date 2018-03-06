@@ -12,7 +12,11 @@ HFILES = crun.h rutil.h cycletimer.h
 
 GFILES = gengraph.py grun.py rutil.py sim.py viz.py  regress.py benchmark.py grade.py
 
-all: crun crun-omp
+TURBO = turboshake
+TFILES = turboshake.c cycletimer.c
+
+
+all: crun crun-omp $(TURBO)
 
 crun: crun-seq
 	cp -p crun-seq crun
@@ -24,8 +28,8 @@ crun-omp: $(CFILES) $(HFILES)
 	$(CC) $(CFLAGS) $(OMP) -o crun-omp $(CFILES) $(LDFLAGS)
 	$(CC) $(CFLAGS) $(OMP) -S -o sim-omp.s sim.c
 
-crun-mpi: $(CFILES) $(HFILES)
-	$(MPICC) $(CFLAGS) $(MPI) -o crun-mpi $(CFILES) fake_omp.c $(LDFLAGS)
+$(TURBO): $(TFILES)
+	$(CC) $(CFLAGS) $(OMP) -o $(TURBO) $(TFILES)
 
 
 demo1: grun.py

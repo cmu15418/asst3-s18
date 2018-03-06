@@ -2,14 +2,18 @@
 
 import subprocess
 import sys
+import os
 import getopt
 import math
 import datetime
+import time
 
 import grade
 
 def usage(fname):
-    print "Usage: %s [-h] [-m] [-s SCALE] [-u UPDATELIST] [-t THREADLIMIT] [-f OUTFILE] [-b (s|v|a)]" % fname
+    
+    ustring = "Usage: %s [-h] [-m] [-s SCALE] [-u UPDATELIST] [-t THREADLIMIT] [-f OUTFILE] [-S SSECS] [-T TSECS]" % fname
+    print ustring
     print "(All lists given as colon-separated text.)"
     print "    -h            Print this message"
     print "    -m            Run MPI"
@@ -22,10 +26,8 @@ def usage(fname):
     print "       For regular case: If > 1, will run crun-omp.  Else will run crun"
     print "       For MPI, will run crun-mpi"
     print "    -f OUTFILE    Create output file recording measurements"
-    print "   -b BCH    Batch method:"
-    print "       s: Sparse"
-    print "       v: Bit vector, update node subset"
-    print "       a: Bit vector, update all nodes"
+    print "    -S SSECS        Let processor cool down by sleeping for SSECS seconds"
+    print "    -T TSECS        Stimulate Turboboost by running job for TSECS seconds"
     sys.exit(0)
 
 # Enumerated type for update mode:
@@ -42,6 +44,13 @@ mpiSimProg = "./crun-mpi"
 
 dataDir = "./data/"
 outFile = None
+
+# Program to stimulate Turboboost
+turboProg = "./turboshake"
+# How long to sleep before Turboboost
+sleepSeconds = 5
+# How long to run program to kick into Turboboost
+turboSeconds = 2
 
 # Dictionary of geometric means, indexed by (mode, threads)
 gmeanDict = {}
@@ -143,6 +152,15 @@ def cmd(graphSize, graphType, ratType, loadFactor, stepCount, updateType, thread
         return False
     return True
 
+def turbo():
+    if turboSeconds > 0 and os.path.exists(turboProg):
+        print "Sleeping for %d seconds and then running %s for %d seconds" % (sleepSeconds, turboProg, turboSeconds)
+        if sleepSeconds > 0:
+            time.sleep(sleepSeconds)
+        tcmd = [turboProg, '-t', '%f' % turboSeconds]
+        simProcess = subprocess.Popen(tcmd)
+        simProcess.wait()
+
 def sweep(updateType, threadLimit, scale, doMPI, otherArgs):
     runList = synchRunList if updateType == UpdateMode.synchronous else otherRunList
     for rparams in runList:
@@ -154,6 +172,8 @@ def sweep(updateType, threadLimit, scale, doMPI, otherArgs):
         outmsg("\tNodes\tgtype\tlf\trtype\tsteps\tupdate\tthreads\tsecs\tMRPS")
         outmsg(nomarker + "---------" * 8)
         for bparams in benchmarkList:
+            if threadCount > 1:
+                turbo()
             (graphSize, graphType, ratType, loadFactor) = bparams
             cmd(graphSize, graphType, ratType, loadFactor, stepCount, updateType, threadCount, doMPI, otherArgs)
         if bcount > 0:
@@ -172,7 +192,8 @@ def run(name, args):
     updateList = [UpdateMode.batch, UpdateMode.synchronous]
     threadLimit = 100
     doMPI = False
-    optlist, args = getopt.getopt(args, "hms:u:t:f:b:")
+    optString = "hms:u:t:f:S:T:"
+    optlist, args = getopt.getopt(args, optString)
     otherArgs = []
 
     for (opt, val) in optlist:
@@ -201,8 +222,10 @@ def run(name, args):
                 else:
                     print "Invalid update mode '%s'" % c
                     usage(name)
-        elif opt == '-b':
-            otherArgs = ['-b', val]
+        elif opt == '-S':
+            sleepSeconds = float(val)
+        elif opt == '-T':
+            turboSeconds = float(val)
         elif opt == '-t':
             threadLimit = int(val)
     
