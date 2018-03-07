@@ -171,6 +171,8 @@ def sweep(updateType, threadLimit, scale, doMPI, otherArgs):
             continue
         outmsg("\tNodes\tgtype\tlf\trtype\tsteps\tupdate\tthreads\tsecs\tMRPS")
         outmsg(nomarker + "---------" * 8)
+        if threadCount == 1:
+            turbo()
         for bparams in benchmarkList:
             if threadCount > 1:
                 turbo()
