@@ -75,6 +75,8 @@ int main(int argc, char *argv[]) {
 	    break;
 	}
     }
+    if (verbose)
+	printf("Sleeping for %d seconds, then active for %d seconds\n", sleepSeconds, turboSeconds);
     if (sleepSeconds > 0)
 	sleep(sleepSeconds);
     turbo(turboSeconds);

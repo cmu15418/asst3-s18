@@ -6,7 +6,6 @@ import os
 import getopt
 import math
 import datetime
-import time
 
 import grade
 
@@ -153,11 +152,12 @@ def cmd(graphSize, graphType, ratType, loadFactor, stepCount, updateType, thread
     return True
 
 def turbo():
-    if turboSeconds > 0 and os.path.exists(turboProg):
-        print "Sleeping for %d seconds and then running %s for %d seconds" % (sleepSeconds, turboProg, turboSeconds)
-        if sleepSeconds > 0:
-            time.sleep(sleepSeconds)
-        tcmd = [turboProg, '-t', '%f' % turboSeconds]
+    if turboSeconds > 0:
+        if not os.path.exists(turboProg):
+            print "Warning.  Cannot find program %s" % turboProg
+            return
+        print "Running %s to sleep for %d seconds and then go active for %d seconds" % (turboProg, sleepSeconds, turboSeconds)
+        tcmd = [turboProg, '-s', str(sleepSeconds), '-t', str(turboSeconds)]
         simProcess = subprocess.Popen(tcmd)
         simProcess.wait()
 
@@ -187,7 +187,7 @@ def sweep(updateType, threadLimit, scale, doMPI, otherArgs):
 
     
 def run(name, args):
-    global outFile
+    global outFile, sleepSeconds, turboSeconds
     scale = 1
     updateList = [UpdateMode.batch, UpdateMode.synchronous]
     threadLimit = 100
@@ -223,9 +223,9 @@ def run(name, args):
                     print "Invalid update mode '%s'" % c
                     usage(name)
         elif opt == '-S':
-            sleepSeconds = float(val)
+            sleepSeconds = int(val)
         elif opt == '-T':
-            turboSeconds = float(val)
+            turboSeconds = int(val)
         elif opt == '-t':
             threadLimit = int(val)
     
