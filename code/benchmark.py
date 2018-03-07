@@ -47,7 +47,7 @@ outFile = None
 # Program to stimulate Turboboost
 turboProg = "./turboshake"
 # How long to sleep before Turboboost
-sleepSeconds = 5
+sleepSeconds = 8
 # How long to run program to kick into Turboboost
 turboSeconds = 2
 
