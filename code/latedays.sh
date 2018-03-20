@@ -12,6 +12,11 @@
 # Allocate all available CPUs on a single node
 #PBS -l nodes=1:ppn=24
 
+
+# Configure to place threads on successive processors
+OMP_PLACES=cores
+OMP_PROC_BIND=close
+
 # Go to the directory from which you submitted your job
 cd $PBS_O_WORKDIR
 

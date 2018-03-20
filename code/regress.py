@@ -16,6 +16,7 @@ def usage(fname):
     print "    -t THD   Specify number of OMP threads"
     print "       If > 1, will run crun-omp.  Else will run crun"
     print "    -p PCS   Specify number of MPI processes"
+    print "    -a       Run ALL tests, including for big graphs"
     sys.exit(0)
 
 
@@ -35,6 +36,9 @@ mpiTestProg = "./crun-mpi"
 dataDir = "./data/"
 # cache for holding reference simulation results
 cacheDir = "./regression-cache/"
+
+# Limit on how many mismatches get reported
+mismatchLimit = 5
 
 # Series of tests to perform.
 # Each defined by:
@@ -61,6 +65,12 @@ regressionList = [
     (1024, 'f', 'u', 10, 4, 'b', 27),
     (1024, 'f', 'r', 10, 6, 's', 28),
     ]
+
+extraRegressionList = [
+    (25600, 'u', 'u', 40, 2, 's', 29),
+    (25600, 't', 'd', 40, 2, 's', 30)
+]
+
 
 def regressionName(params, standard = True):
     return ("ref" if standard else "tst") +  "-%.3d-%s-%s-%.3d-%.3d-%s-%.2d.txt" % params
@@ -115,6 +125,7 @@ def runSim(params, standard = True, threadCount = 1):
     return True
 
 def checkFiles(refPath, testPath):
+    badLines = 0
     lineNumber = 0
     try:
         rf = open(refPath, 'r')
@@ -134,21 +145,26 @@ def checkFiles(refPath, testPath):
             if tline == "":
                 break
             else:
+                badLines += 1
                 sys.stderr.write("Mismatch at line %d.  File %s ended prematurely\n" % (lineNumber, refPath))
-                return False
+                break
         elif tline == "":
+            badLines += 1
             sys.stderr.write("Mismatch at line %d.  File %s ended prematurely\n" % (lineNumber, testPath))
-            return False
+            break
         if rline[-1] == '\n':
             rline = rline[:-1]
         if tline[-1] == '\n':
             tline = tline[:-1]
         if rline != tline:
-            sys.stderr.write("Mismatch at line %d.  File %s:'%s'.  File '%s':'%s'\n" % (lineNumber, refPath, rline, testPath, tline))
-            return False
+            badLines += 1
+            if badLines <= mismatchLimit:
+                sys.stderr.write("Mismatch at line %d.  File %s:'%s'.  File %s:'%s'\n" % (lineNumber, refPath, rline, testPath, tline))
     rf.close()
     tf.close()
-    return True
+    if badLines > 0:
+        sys.stderr.write("%d total mismatches.  Files %s, %s\n" % (badLines, refPath, testPath))
+    return badLines == 0
             
 def regress(params, threadCount):
     refPath = cacheDir + regressionName(params, standard = True)
@@ -165,7 +181,7 @@ def regress(params, threadCount):
 
     return checkFiles(refPath, testPath)
 
-def run(flushCache, threadCount):
+def run(flushCache, threadCount, doAll):
 
     if flushCache and os.path.exists(cacheDir):
         try:
@@ -181,21 +197,23 @@ def run(flushCache, threadCount):
             sys.exit(1)
     goodCount = 0
     allCount = 0
-    for p in regressionList:
+    rlist = regressionList + (extraRegressionList if doAll else [])
+    for p in rlist:
         allCount += 1
         if regress(p, threadCount):
             sys.stderr.write("Regression %s passed\n" % regressionName(p, standard = False))
             goodCount += 1
-    totalCount = len(regressionList)
+    totalCount = len(rlist)
     message = "SUCCESS" if goodCount == totalCount else "FAILED"
     sys.stderr.write("Regression set size %d.  %d/%d tests successful. %s\n" % (totalCount, goodCount, allCount, message))
 
 
 if __name__ == "__main__":
+    doAll = False
     threadCount = 1
     flushCache = False
     
-    optlist, args = getopt.getopt(sys.argv[1:], "hct:")
+    optlist, args = getopt.getopt(sys.argv[1:], "hct:a")
 
 
     for (opt, val) in optlist:
@@ -205,4 +223,6 @@ if __name__ == "__main__":
             flushCache = True
         elif opt == '-t':
             threadCount = int(val)
-    run(flushCache, threadCount)
+        elif opt == '-a':
+            doAll = True
+    run(flushCache, threadCount, doAll)
