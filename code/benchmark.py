@@ -7,6 +7,7 @@ import os.path
 import getopt
 import math
 import datetime
+import random
 
 import grade
 
@@ -24,6 +25,7 @@ def usage(fname):
     print "    -t THREADLIMIT Specify upper limit on number of OMP threads"
     print "       If > 1, will run crun-omp.  Else will run crun"
     print "    -f OUTFILE    Create output file recording measurements"
+    print "         If file name contains field of form XX..X, will replace with ID having that many digits"
     print "    -c            Compare simulator output to recorded result"
     sys.exit(0)
 
@@ -229,7 +231,16 @@ def sweep(updateType, threadLimit, scale, otherArgs):
             gmeanDict[(updateFlag, threadCount)] = gmean
     return ok
 
-    
+def generateFileName(template):
+    n = len(template)
+    ls = []
+    for i in range(n):
+        c = template[i]
+        if c == 'X':
+            c = chr(random.randint(ord('0'), ord('9')))
+        ls.append(c)
+    return "".join(ls)
+
 def run(name, args):
     global outFile, doCheck
     scale = 1
@@ -245,11 +256,13 @@ def run(name, args):
         elif opt == '-s':
             scale = float(val)
         elif opt == '-f':
+            fname = generateFileName(val)
             try:
-                outFile = open(val, "w")
+                outFile = open(fname, "w")
+                outmsg("Writing to file '%s'" % fname)
             except Exception as e:
                 outFile = None
-                outmsg("Couldn't open output file '%s'" % val)
+                outmsg("Couldn't open output file '%s'" % fname)
         elif opt == '-u':
             ulist = val.split(":")
             updateList = []
@@ -267,6 +280,9 @@ def run(name, args):
             doCheck = True
         elif opt == '-t':
             threadLimit = int(val)
+        else:
+            outmsg("Unknown option '%s'" % opt)
+            usage(name)
     
     tstart = datetime.datetime.now()
 
@@ -281,7 +297,7 @@ def run(name, args):
     grade.grade(ok, gmeanDict, sys.stdout)
 
     if outFile:
-        grade.grade(gmeanDict, outFile)
+        grade.grade(ok, gmeanDict, outFile)
         outFile.close()
 
 if __name__ == "__main__":
