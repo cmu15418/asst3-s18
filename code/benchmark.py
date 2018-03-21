@@ -12,19 +12,17 @@ import grade
 
 def usage(fname):
     
-    ustring = "Usage: %s [-h] [-m] [-s SCALE] [-u UPDATELIST] [-t THREADLIMIT] [-f OUTFILE] [-c]" % fname
+    ustring = "Usage: %s [-h] [-s SCALE] [-u UPDATELIST] [-t THREADLIMIT] [-f OUTFILE] [-c]" % fname
     print ustring
     print "(All lists given as colon-separated text.)"
     print "    -h            Print this message"
-    print "    -m            Run MPI"
     print "    -s SCALE      Reduce number of steps in each benchmark by specified factor"
     print "    -u UPDATELIST Specify update modes(s):"
     print "       r: rat order"
     print "       s: synchronous"
     print "       b: batch"
-    print "    -t THREADLIMIT Specify upper limit on number of OMP threads (or MPI processes)"
-    print "       For regular case: If > 1, will run crun-omp.  Else will run crun"
-    print "       For MPI, will run crun-mpi"
+    print "    -t THREADLIMIT Specify upper limit on number of OMP threads"
+    print "       If > 1, will run crun-omp.  Else will run crun"
     print "    -f OUTFILE    Create output file recording measurements"
     print "    -c            Compare simulator output to recorded result"
     sys.exit(0)
@@ -39,12 +37,14 @@ class UpdateMode:
 # General information
 simProg = "./crun"
 ompSimProg = "./crun-omp"
-mpiSimProg = "./crun-mpi"
 
 dataDir = "./data/"
 outFile = None
 captureDirectory = "./capture"
 doCheck = False
+
+# How many mismatched lines warrant detailed report
+mismatchLimit = 5
 
 # Dictionary of geometric means, indexed by (mode, threads)
 gmeanDict = {}
@@ -146,7 +146,7 @@ def checkOutputs(captureFile, outputFile):
         outmsg("Simulator output matches recorded results!")
     return badLines == 0
 
-def cmd(graphSize, graphType, ratType, loadFactor, stepCount, updateType, threadCount, doMPI, otherArgs):
+def cmd(graphSize, graphType, ratType, loadFactor, stepCount, updateType, threadCount, otherArgs):
     global bcount, logSum
     global cacheKey
     updateFlag = UpdateMode.flags[updateType]
@@ -163,11 +163,8 @@ def cmd(graphSize, graphType, ratType, loadFactor, stepCount, updateType, thread
         clist = captureRunFlags + ["-g", graphFileName, "-r", ratFileName, "-u", updateFlag, "-n", str(stepCount), "-i", str(stepCount)] + otherArgs
     else:
         clist = runFlags + ["-g", graphFileName, "-r", ratFileName, "-u", updateFlag, "-n", str(stepCount), "-i", str(stepCount)] + otherArgs
-    if doMPI:
-        gcmd = ["mpirun", "-np", str(threadCount), mpiSimProg] + clist
-    else:
-        prog = simProg if threadCount == 1 else ompSimProg
-        gcmd = [prog] + clist + ["-t", str(threadCount)]
+    prog = simProg if threadCount == 1 else ompSimProg
+    gcmd = [prog] + clist + ["-t", str(threadCount)]
     gcmdLine = " ".join(gcmd)
     retcode = 1
     tstart = datetime.datetime.now()
@@ -176,14 +173,15 @@ def cmd(graphSize, graphType, ratType, loadFactor, stepCount, updateType, thread
         stdoutFileNumber = 1
         if recordOutput:
             simProcess = subprocess.Popen(gcmd, stderr = stdoutFileNumber, stdout = subprocess.PIPE)
+            ok = ok and checkOutputs(checkFile, simProcess.stdout)
         else:
             simProcess = subprocess.Popen(gcmd, stderr = stdoutFileNumber)
-        ok = ok and checkOutputs(checkFile, simProcess.stdout)
+
         simProcess.wait()
+        retcode = simProcess.returncode
     except Exception as e:
         print "Execution of command '%s' failed. %s" % (gcmdLine, e)
         return False
-    retcode = simProcess.returncode
     if retcode == 0:
         delta = datetime.datetime.now() - tstart
         secs = delta.seconds + 24 * 3600 * delta.days + 1e-6 * delta.microseconds
@@ -209,7 +207,7 @@ def cmd(graphSize, graphType, ratType, loadFactor, stepCount, updateType, thread
         return False
     return ok
 
-def sweep(updateType, threadLimit, scale, doMPI, otherArgs):
+def sweep(updateType, threadLimit, scale, otherArgs):
     runList = synchRunList if updateType == UpdateMode.synchronous else otherRunList
     ok = True
     for rparams in runList:
@@ -222,7 +220,7 @@ def sweep(updateType, threadLimit, scale, doMPI, otherArgs):
         outmsg(nomarker + "---------" * 8)
         for bparams in benchmarkList:
             (graphSize, graphType, ratType, loadFactor) = bparams
-            ok = ok and cmd(graphSize, graphType, ratType, loadFactor, stepCount, updateType, threadCount, doMPI, otherArgs)
+            ok = ok and cmd(graphSize, graphType, ratType, loadFactor, stepCount, updateType, threadCount, otherArgs)
         if bcount > 0:
             gmean = math.exp(logSum/bcount)
             updateFlag = UpdateMode.flags[updateType]
@@ -237,16 +235,13 @@ def run(name, args):
     scale = 1
     updateList = [UpdateMode.batch, UpdateMode.synchronous]
     threadLimit = 100
-    doMPI = False
-    optString = "hms:u:t:f:c"
+    optString = "hs:u:t:f:c"
     optlist, args = getopt.getopt(args, optString)
     otherArgs = []
 
     for (opt, val) in optlist:
         if opt == '-h':
             usage(name)
-        elif opt == '-m':
-            doMPI = True
         elif opt == '-s':
             scale = float(val)
         elif opt == '-f':
@@ -277,7 +272,7 @@ def run(name, args):
 
     ok = True
     for u in updateList:
-        ok = ok and sweep(u, threadLimit, scale, doMPI, otherArgs)
+        ok = ok and sweep(u, threadLimit, scale, otherArgs)
     
     delta = datetime.datetime.now() - tstart
     secs = delta.seconds + 24 * 3600 * delta.days + 1e-6 * delta.microseconds

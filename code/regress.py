@@ -15,10 +15,8 @@ def usage(fname):
     print "    -c       Clear expected result cache"
     print "    -t THD   Specify number of OMP threads"
     print "       If > 1, will run crun-omp.  Else will run crun"
-    print "    -p PCS   Specify number of MPI processes"
     print "    -a       Run ALL tests, including for big graphs"
     sys.exit(0)
-
 
 
 # General information
@@ -74,6 +72,7 @@ extraRegressionList = [
 
 def regressionName(params, standard = True):
     return ("ref" if standard else "tst") +  "-%.3d-%s-%s-%.3d-%.3d-%s-%.2d.txt" % params
+
 def regressionCommand(params, standard = True, threadCount = 1):    
     graphSize, graphType, ratType, ratLoad, stepCount, updateFlag, seed = params
 

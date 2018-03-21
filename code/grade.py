@@ -72,7 +72,7 @@ def grade(ok, gmeanDict, outf):
         total += val
     itotal = math.ceil(total)
     if not ok:
-        outf.write("One or more tests failed.  No credit given")
+        outf.write("ERROR: One or more tests failed.  No credit given\n")
         itotal = 0
     outf.write("TOTAL = %d/%.0f\n" % (itotal, maxtotal))
     outf.write("---------" * 9 + "\n")
