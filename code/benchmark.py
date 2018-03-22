@@ -174,8 +174,11 @@ def cmd(graphSize, graphType, ratType, loadFactor, stepCount, updateType, thread
         # File number of standard output
         stdoutFileNumber = 1
         if recordOutput:
-            simProcess = subprocess.Popen(gcmd, stderr = stdoutFileNumber, stdout = subprocess.PIPE)
+            simProcess = subprocess.Popen(gcmd, stderr = subprocess.PIPE, stdout = subprocess.PIPE)
             ok = ok and checkOutputs(checkFile, simProcess.stdout)
+            # Echo any results printed by simulator on stderr onto stdout
+            for line in simProcess.stderr:
+                sys.stdout.write(line)
         else:
             simProcess = subprocess.Popen(gcmd, stderr = stdoutFileNumber)
 

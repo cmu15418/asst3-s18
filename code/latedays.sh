@@ -20,7 +20,8 @@ OMP_PROC_BIND=close
 # Go to the directory from which you submitted your job
 cd $PBS_O_WORKDIR
 
-# Execute the performance evaluation program and store summary in benchmark.out
-./benchmark.py -f benchmark.out
+# Execute the performance evaluation program and store summary in benchmark-NNNN.out
+# where NNNN is a random 4-digit number
+./benchmark.py -f benchmark-XXXX.out
 
 
